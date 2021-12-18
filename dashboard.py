@@ -24,13 +24,15 @@ import plotly.graph_objects as go
 
 
 import yfinance as yf
+#from yahoo_fin.stock_info import get_data
 
-
+from yahoo_fin.stock_info import get_data
+import yahoo_fin.stock_info as si
 
 #''' ============== Select Dashboard ============== '''
 st.sidebar.title('Options')
 option = st.sidebar.selectbox('Which Dashboard?', 
-{'wallstreetbets','stocktwits','chart','pattern'},1
+{'wallstreetbets','stocktwits','chart','pattern','general'},1
 #{'twitter','wallstreetbets','stocktwits','chart','pattern'}
 )
 #st.header(option)
@@ -41,13 +43,41 @@ option = st.sidebar.selectbox('Which Dashboard?',
     #st.subheader('twitter dashboard logic')
 
 import plotly.graph_objects as go
+import time
 
+#https://algotrading101.com/learn/yahoo-finance-api-guide/
+# http://theautomatic.net/yahoo_fin-documentation/#get_live_price
 if option == 'chart':
     # https://towardsdatascience.com/free-stock-data-for-python-using-yahoo-finance-api-9dafd96cad2e
     st.subheader('Stock Chart Dashboard')
+
     symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
-    period_name = st.sidebar.selectbox('Period', ['1 day', '5 day', 'yesterday', '1 month', '6 month', '1 year', '2 years', '5 years', '10 years', 'max'],index=4,help='select period of stock')
-    interval = st.sidebar.selectbox('Period', ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo'],index=8,help='select time interval of stock')
+
+    # get stock information from yahoo finance API
+    stock = yf.Ticker(symbol)
+    # get stock info
+    #print(stock.info)
+
+
+    st.subheader(symbol.upper()+' : '+stock.info['shortName'])
+    
+    period_name = st.sidebar.selectbox('Last Period', ['1 day', '5 day', 'yesterday', '1 month', '6 month', '1 year', '2 years', '5 years', '10 years', 'max'],index=4,help='select period of stock')
+    interval = st.sidebar.selectbox('Interval', ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo'],index=8,help='select time interval of stock')
+
+
+    col1, col2, col3 = st.columns(3)
+    mkt_status = si.get_market_status()
+    #st.markdown('Market Status = '+ str(mkt_status))
+    col1.metric('Market Status',mkt_status)
+    
+    live_price = si.get_live_price(symbol)
+    col2.metric('Current Price',round(live_price,2),delta="percentage change %")
+    #st.markdown('Current Price = '+ str(round(live_price,2)))
+    #while True:
+        #live_price = si.get_live_price(symbol)
+        #st.markdown('current price = '+ str(round(live_price,2)))
+        #time.sleep(5) # Sleep for 5 seconds
+        #print(live_price)
 
     period_dict = {'1 day':'1d', 
     '5 day':'5d', 
@@ -61,16 +91,14 @@ if option == 'chart':
     '10 years':'10y', 
     'max':'max'}
 
-    # get stock information from yahoo finance API
-    stock = yf.Ticker(symbol)
-    # get stock info
-    #print(msft.info)
+   
 
     # get historical market 
     data = stock.history(period=period_dict[period_name])
     #data = pd.read_sql()
     #st.dataframe(hist_df)  # Same as st.write(df)
-    st.subheader(symbol.upper())
+    
+
     fig = go.Figure(data=[go.Candlestick(x=data.iloc[:,0],
                     open=data['Open'],
                     high=data['High'],
@@ -79,11 +107,53 @@ if option == 'chart':
                     name=symbol)]                 
                     )
     fig.update_xaxes(type='category')
-    fig.update_layout(height=700)
+    fig.update_layout(yaxis_title=symbol.upper()+' Price',
+    xaxis_title='Date',
+        height=700) #xaxis_rangeslider_visible=False
+
+    fig.update_xaxes(title_font=dict(size=18, family='Courier', color='crimson'))
+    fig.update_yaxes(title_font=dict(size=18, family='Courier', color='crimson'))
     st.plotly_chart(fig, use_container_width=True)
+
+    fig.update_layout(yaxis_title=symbol.upper()+' Price (USD)',xaxis_title='Date',
+        height=700) #xaxis_rangeslider_visible=False
+    st.line_chart(data=data[['Close','Open']],width=0, height=0, use_container_width=True)
+
     st.write(data)
 
+from yahoo_fin import news
+if option == 'general':
+    st.subheader('General Dashboard')
+    #symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
+    st.subheader('Table of the top 100 undervalued large caps')
+    large_cap_table = si.get_undervalued_large_caps()
+    st.write(large_cap_table)
 
+    symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
+    
+    st.subheader('Yearly Income Statement of '+ str(symbol))
+    # get yearly data
+    income_statement_yearly = si.get_income_statement(symbol)
+    st.write(income_statement_yearly)
+
+    st.subheader('Quarterly Income Statement of '+ str(symbol))
+    # get quarterly data
+    income_statement_quarterly = si.get_income_statement(symbol, yearly = False)
+    st.write(income_statement_quarterly)
+    
+    st.subheader('Yahoo Finance News of '+ str(symbol))
+    stock_news = news.get_yf_rss(symbol)
+
+    count = 1 
+    for message in stock_news:
+        st.write(str(count)+'. '+message['title'])
+        st.write('Published '+message['published'])
+        st.write(message['summary'])
+        st.write('_______________________________________________________________')
+
+        count+=1
+
+    st.write(stock_news)
 
 if option == 'pattern':
     st.subheader('Pattern Chart Dashboard')
@@ -97,8 +167,9 @@ if option == 'pattern':
 if option == 'stocktwits':
     #st.subheader('chart dashboard logic')
     #symbol= 'AAPL'
+    
     symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
-
+    st.subheader('Stockwits - '+symbol)
     r = requests.get(f"https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json")
     data = r.json()
 
@@ -107,6 +178,7 @@ if option == 'stocktwits':
         st.write(message['user']['username'])
         st.write(message['created_at'])
         st.write(message['body'])
+        st.write('_______________________________________________________________')
 
     st.write(data)
 
