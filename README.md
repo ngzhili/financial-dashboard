@@ -1,2 +1,4 @@
 # financial-dashboard
- stock dashboard
+
+
+A streamlit web application to view stock prices, charts and news.
