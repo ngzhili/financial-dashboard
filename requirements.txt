@@ -1,6 +1,8 @@
 streamlit
 pandas
 plotly
-psycopg2
+#psycopg2
 requests
-tweepy
+#tweepy
+yfinance
+yahoo_fin
