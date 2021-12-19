@@ -5,6 +5,15 @@ import requests
 import psycopg2, psycopg2.extras
 import plotly.graph_objects as go
 
+import yfinance as yf
+from yahoo_fin.stock_info import get_data
+import yahoo_fin.stock_info as si
+from yahoo_fin import news
+import time
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+#import streamlit.components.v1 as components
+
 # tutorial https://www.youtube.com/watch?v=0ESc1bh3eIg&ab_channel=PartTimeLarry
 # https://github.com/hackingthemarkets/streamlit-dashboards/blob/main/dashboard.py
 
@@ -12,7 +21,7 @@ import plotly.graph_objects as go
 #connection = psycopg2.connect(host=config.DB_HOST, database=config.DB_NAME, user=config.DB_USER, password=config.DB_PASS)
 #cursor = connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-#st.title("Finanial Dashboard")
+#st.title("Financial Dashboard")
 
 #st.header('This is a header')
 
@@ -22,17 +31,10 @@ import plotly.graph_objects as go
 
 #some_dict  = {'key1':1,'key2':2}
 
-
-import yfinance as yf
-#from yahoo_fin.stock_info import get_data
-
-from yahoo_fin.stock_info import get_data
-import yahoo_fin.stock_info as si
-
 #''' ============== Select Dashboard ============== '''
-st.sidebar.title('Options')
+st.sidebar.title('Select Options')
 option = st.sidebar.selectbox('Which Dashboard?', 
-{'wallstreetbets','stocktwits','chart','pattern','general'},1
+['chart','general','stocktwits'],0
 #{'twitter','wallstreetbets','stocktwits','chart','pattern'}
 )
 #st.header(option)
@@ -42,36 +44,28 @@ option = st.sidebar.selectbox('Which Dashboard?',
 #if option == 'twitter':
     #st.subheader('twitter dashboard logic')
 
-import plotly.graph_objects as go
-import time
-
 #https://algotrading101.com/learn/yahoo-finance-api-guide/
 # http://theautomatic.net/yahoo_fin-documentation/#get_live_price
 if option == 'chart':
     # https://towardsdatascience.com/free-stock-data-for-python-using-yahoo-finance-api-9dafd96cad2e
-    st.subheader('Stock Chart Dashboard')
-
-    symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
+    st.header('Stock Chart Dashboard')
+    
+    symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5,help='Enter Valid Stock Ticker Symbol')
+    
 
     # get stock information from yahoo finance API
     stock = yf.Ticker(symbol)
     # get stock info
     #print(stock.info)
-
-
     st.subheader(symbol.upper()+' : '+stock.info['shortName'])
-    
-    period_name = st.sidebar.selectbox('Last Period', ['1 day', '5 day', 'yesterday', '1 month', '6 month', '1 year', '2 years', '5 years', '10 years', 'max'],index=4,help='select period of stock')
-    interval = st.sidebar.selectbox('Interval', ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo'],index=8,help='select time interval of stock')
-
 
     col1, col2, col3 = st.columns(3)
+    col4, col5, col6 = st.columns(3)
     mkt_status = si.get_market_status()
     #st.markdown('Market Status = '+ str(mkt_status))
     col1.metric('Market Status',mkt_status)
     
-    live_price = si.get_live_price(symbol)
-    col2.metric('Current Price',round(live_price,2),delta="percentage change %")
+    
     #st.markdown('Current Price = '+ str(round(live_price,2)))
     #while True:
         #live_price = si.get_live_price(symbol)
@@ -79,6 +73,9 @@ if option == 'chart':
         #time.sleep(5) # Sleep for 5 seconds
         #print(live_price)
 
+    period_name = st.sidebar.selectbox('Last Period', ['1 day', '5 day', 'yesterday', '1 month', '6 month', '1 year', '2 years', '5 years', '10 years', 'max'],index=4,help='select period of stock')
+    interval = st.sidebar.selectbox('Interval', ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo'],index=8,help='select time interval of stock')
+    
     period_dict = {'1 day':'1d', 
     '5 day':'5d', 
     'yesterday':'ytd', 
@@ -90,46 +87,98 @@ if option == 'chart':
     '5 years':'5y', 
     '10 years':'10y', 
     'max':'max'}
-
-   
-
-    # get historical market 
-    data = stock.history(period=period_dict[period_name])
-    #data = pd.read_sql()
-    #st.dataframe(hist_df)  # Same as st.write(df)
     
 
-    fig = go.Figure(data=[go.Candlestick(x=data.iloc[:,0],
-                    open=data['Open'],
-                    high=data['High'],
-                    low=data['Low'],
-                    close=data['Close'],
-                    name=symbol)]                 
-                    )
-    fig.update_xaxes(type='category')
-    fig.update_layout(yaxis_title=symbol.upper()+' Price',
-    xaxis_title='Date',
-        height=700) #xaxis_rangeslider_visible=False
+    quote_data = si.get_quote_data(symbol)
+    #print(quote_data)
 
-    fig.update_xaxes(title_font=dict(size=18, family='Courier', color='crimson'))
-    fig.update_yaxes(title_font=dict(size=18, family='Courier', color='crimson'))
+    live_price = si.get_live_price(symbol)
+    col2.metric('Current Market Price',round(live_price,2),delta=str(round(quote_data['regularMarketChange'],2))+' ('+str(round(quote_data['regularMarketChangePercent'],2))+'%)')
+
+    if 'postMarketPrice' in quote_data:
+        col3.metric('Post Market Price',round(quote_data['postMarketPrice'],2),delta=str(round(quote_data['postMarketChange'],2))+' ('+str(round(quote_data['postMarketChangePercent'],2))+'%)')
+
+    if 'forwardPE' in quote_data:
+        col4.metric('Forward P/E',str(round(quote_data['forwardPE'],2)))
+    if 'priceToBook' in quote_data:
+        col5.metric('Price to Book',str(round(quote_data['priceToBook'],2)))
+    if 'averageAnalystRating' in quote_data:
+        col6.metric('Analyst Rating - '+quote_data['averageAnalystRating'].split('-')[1],str(quote_data['averageAnalystRating'].split('-')[0]) + '/ 5.0',
+                delta=None, delta_color="off")
+
+    #components.html("""<hr style="height:10px;border:none;color:#333;background-color:#333;" /> """)
+    st.markdown("""<hr style="height:10px;border:none;color:#333;background-color:#333;" /> """, unsafe_allow_html=True)
+    
+    # get historical market 
+    data = stock.history(period=period_dict[period_name],interval=interval)
+    #data.index.apply()
+    #data['percentage_change'] = data['Close']/data['Close'].shift(1)-1
+
+
+    st.subheader(symbol.upper()+ ' Chart - Last '+period_name)
+    #data = pd.read_sql()
+    #st.dataframe(hist_df)  # Same as st.write(df)
+    #data.columns.values[0]="date"
+    #fig = make_subplots(rows=2, cols=1, row_heights=[1, 0.2], vertical_spacing=0.02,shared_xaxes=True) #row_heights=[1, 0.2], 
+    fig = make_subplots(rows=2, cols=1, row_heights=[0.8, 0.2], 
+                        vertical_spacing=0,shared_xaxes=True,
+                        #row_heights=[1, 0.2], 
+                        #subplot_titles=("First Subplot","Second Subplot")
+    ) 
+
+    #fig = go.Figure(data=[go.Candlestick(x=data.index,
+                    #open=data['Open'],
+                    #high=data['High'],
+                    #low=data['Low'],
+                    #close=data['Close'],
+                    #name=symbol)]                 
+                    #))
+    fig.add_trace(go.Candlestick(x=data.index,open=data['Open'], high=data['High'], low=data['Low'], close=data['Close'],
+                             name=symbol), row=1, col=1)
+
+    fig.add_trace(go.Scatter(x=data.index,y=data['Volume'], marker_color='#fae823', name='VOL', hovertemplate=[]), row=2, col=1)
+
+    
+    fig.update_layout({'plot_bgcolor': "#21201f", 'paper_bgcolor': "#21201f", 'legend_orientation': "h"},
+                  legend=dict(y=1, x=0),
+                  font=dict(color='#dedddc'), dragmode='pan', hovermode='x unified',
+                  margin=dict(b=20, t=0, l=0, r=40))
+
+    fig.update_yaxes(showgrid=False, zeroline=False, showticklabels=True,
+                 showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
+
+    #fig.update_xaxes(showgrid=False, zeroline=False, showticklabels=True,
+                 #showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid')
+
+    fig.update_xaxes(showgrid=False,type='category',zeroline=False,
+    showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid' )
+
+    fig.update_layout(title=symbol.upper()+' Price - '+period_name,
+                    yaxis_title='Price',
+                    #xaxis_title='Date',
+                    xaxis_rangeslider_visible=False,
+                    height=700) #xaxis_rangeslider_visible=False
+              
+    #fig.update_xaxes(title_font=dict(size=18, family='Courier', color='crimson'))
+    #fig.update_yaxes(title_font=dict(size=18, family='Courier', color='crimson'))
+    #fig.update_layout(hoverdistance=0)
+    #fig.update_traces(xaxis='x')
     st.plotly_chart(fig, use_container_width=True)
 
-    fig.update_layout(yaxis_title=symbol.upper()+' Price (USD)',xaxis_title='Date',
-        height=700) #xaxis_rangeslider_visible=False
-    st.line_chart(data=data[['Close','Open']],width=0, height=0, use_container_width=True)
+    #fig.update_layout(yaxis_title=symbol.upper()+' Price (USD)',
+    #xaxis_title='Date',
+        #height=700) #xaxis_rangeslider_visible=False
 
-    st.write(data)
+    data['MA50'] = data['Open'].rolling(50).mean()
+    data['MA200'] = data['Open'].rolling(200).mean()
+    
+    st.line_chart(data=data[['Close','Open','MA50','MA200']],use_container_width=True)
 
-from yahoo_fin import news
-if option == 'general':
-    st.subheader('General Dashboard')
-    #symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
-    st.subheader('Table of the top 100 undervalued large caps')
-    large_cap_table = si.get_undervalued_large_caps()
-    st.write(large_cap_table)
+    # show dataframe
+    #st.subheader('Stock Dataframe')
+    #st.write(data)
 
-    symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
+    st.image(f"https://finviz.com/chart.ashx?t={symbol}",caption=symbol+' stock chart retrieved from finviz')
     
     st.subheader('Yearly Income Statement of '+ str(symbol))
     # get yearly data
@@ -153,13 +202,18 @@ if option == 'general':
 
         count+=1
 
-    st.write(stock_news)
+    #st.write(stock_news)
 
-if option == 'pattern':
-    st.subheader('Pattern Chart Dashboard')
-    symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
 
-    st.image(f"https://finviz.com/chart.ashx?t={symbol}")
+if option == 'general':
+    st.subheader('General Dashboard')
+    #symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
+    st.subheader('Table of the top 100 undervalued large caps')
+    large_cap_table = si.get_undervalued_large_caps()
+    st.write(large_cap_table)
+
+    #symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
+    
 
 #if option == 'wallstreetbets':
     #st.subheader('wallstreetbets dashboard logic')
@@ -168,8 +222,9 @@ if option == 'stocktwits':
     #st.subheader('chart dashboard logic')
     #symbol= 'AAPL'
     
-    symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5)
+    symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5,help='Enter Valid Stock Ticker Symbol')
     st.subheader('Stockwits - '+symbol)
+    st.markdown("""<hr style="height:10px;border:none;color:#333;background-color:#333;" /> """, unsafe_allow_html=True)
     r = requests.get(f"https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json")
     data = r.json()
 
@@ -180,9 +235,10 @@ if option == 'stocktwits':
         st.write(message['body'])
         st.write('_______________________________________________________________')
 
-    st.write(data)
+    #st.write(data)
 
-
+st.sidebar.write('Made by Ng Zhili - 2021')
+st.sidebar.write("View source code [here](https://github.com/ngzhili/financial-dashboard)")
 
 #df = pd.DataFrame(
     #np.random.randn(50, 20),
