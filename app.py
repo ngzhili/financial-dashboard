@@ -3,13 +3,14 @@ import pandas as pd
 import numpy as np
 import requests
 #import psycopg2, psycopg2.extras
-import plotly.graph_objects as go
+
 
 import yfinance as yf
 from yahoo_fin.stock_info import get_data
 import yahoo_fin.stock_info as si
 from yahoo_fin import news
 import time
+
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 #import streamlit.components.v1 as components
