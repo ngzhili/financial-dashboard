@@ -4,7 +4,6 @@ import numpy as np
 import requests
 #import psycopg2, psycopg2.extras
 
-
 import yfinance as yf
 from yahoo_fin.stock_info import get_data
 import yahoo_fin.stock_info as si
@@ -75,7 +74,6 @@ if option == 'chart':
         #st.markdown('Market Status = '+ str(mkt_status))
         col1.metric('Market Status',mkt_status)
         
-        
         #st.markdown('Current Price = '+ str(round(live_price,2)))
         #while True:
             #live_price = si.get_live_price(symbol)
@@ -83,20 +81,40 @@ if option == 'chart':
             #time.sleep(5) # Sleep for 5 seconds
             #print(live_price)
 
-        period_name = st.sidebar.selectbox('Last Period', ['1 day', '5 day', 'yesterday', '1 month', '6 month', '1 year', '2 years', '5 years', '10 years', 'max'],index=4,help='select period of stock')
-        interval = st.sidebar.selectbox('Interval', ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo'],index=8,help='select time interval of stock')
+        period_name = st.sidebar.selectbox('Last Period', ['yesterday','1 day', '5 day', '1 month', '3 months','6 months', '1 year', '2 years', '5 years', '10 years', 'max'],index=5,help='select period of stock')
+        
+        interval_list = ['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo']
+        interval_dict = {'yesterday':(0,9), 
+                        '1 day':(0,9), 
+                        '5 day':(0,10), 
+                        '1 month':(1,12), 
+                        '3 months':(7,13), 
+                        '6 months':(7,13), 
+                        '1 year':(7,13), 
+                        '2 years':(7,13), 
+                        '5 years':(8,13), 
+                        '10 years':(8,13), 
+                        'max':(8,13)
+                        }
+        
+        interval = st.sidebar.selectbox('Interval', interval_list[interval_dict[period_name][0]:interval_dict[period_name][1]],index=1,help='select time interval of stock')
         
         period_dict = {'1 day':'1d', 
         '5 day':'5d', 
         'yesterday':'ytd', 
         '1 month':'1mo', 
-        '3 month':'3mo', 
-        '6 month':'6mo', 
+        '3 months':'3mo', 
+        '6 months':'6mo', 
         '1 year':'1y', 
         '2 years':'2y', 
         '5 years':'5y', 
         '10 years':'10y', 
         'max':'max'}
+
+        #text_length = st.slider("Choose text length", value=[1,3], step=1)
+        #full_text = 'abcdefghij'
+        #output_text = full_text[:text_length]
+        #st.markdown(output_text)         
         
         quote_data = si.get_quote_data(symbol)
         quote_table = si.get_quote_table(symbol)
@@ -141,7 +159,7 @@ if option == 'chart':
         #data['percentage_change'] = data['Close']/data['Close'].shift(1)-1
 
 
-        st.subheader(symbol.upper()+ ' Chart - Last '+period_name)
+        st.subheader(symbol.upper()+ ' Chart - '+period_name)
         #data = pd.read_sql()
         #st.dataframe(hist_df)  # Same as st.write(df)
         #data.columns.values[0]="date"
@@ -337,3 +355,7 @@ st.sidebar.write("View source code [here](https://github.com/ngzhili/financial-d
 #st.dataframe(df)  # Same as st.write(df)
 
 #st.image('https://www.nasdaq.com/sites/acquia.prod/files/styles/720x400/public/image/fad5aa82561887202560b4dba338bef2a56751e6_742299cbdba5f731f487c3c190f8cee5.png?itok=BuSFq0hp')
+
+
+# Run Application
+# streamlit run stock-dashboard.py
