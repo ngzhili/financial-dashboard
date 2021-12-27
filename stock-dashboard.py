@@ -46,6 +46,47 @@ option = st.sidebar.selectbox('Which Dashboard?',
 )
 #st.header(option)
 
+# ''' ===== Get All Stock Tickers for US Stocks ===== '''
+
+# gather stock symbols from major US exchanges
+df1 = pd.DataFrame( si.tickers_sp500() )
+df2 = pd.DataFrame( si.tickers_nasdaq() )
+df3 = pd.DataFrame( si.tickers_dow() )
+df4 = pd.DataFrame( si.tickers_other() )
+
+# convert DataFrame to list, then to sets
+sym1 = set( symbol for symbol in df1[0].values.tolist() )
+sym2 = set( symbol for symbol in df2[0].values.tolist() )
+sym3 = set( symbol for symbol in df3[0].values.tolist() )
+sym4 = set( symbol for symbol in df4[0].values.tolist() )
+
+# join the 4 sets into one. Because it's a set, there will be no duplicate symbols
+symbols = set.union( sym1, sym2, sym3, sym4 )
+
+# Some stocks are 5 characters. Those stocks with the suffixes listed below are not of interest.
+my_list = ['W', 'R', 'P', 'Q']
+
+# W means there are outstanding warrants. We don’t want those.
+# R means there is some kind of “rights” issue. Again, not wanted.
+# P means “First Preferred Issue”. Preferred stocks are a separate entity.
+# Q means bankruptcy. We don’t want those, either.
+
+#del_set = set()
+sav_set = set()
+
+for symbol in symbols:
+    if len( symbol ) > 4 and symbol[-1] in my_list:
+        pass
+        #del_set.add( symbol )
+    else:
+        sav_set.add( symbol )
+
+sav_set = sorted(sav_set)
+#print(symbols)        
+
+#print( f'Removed {len( del_set )} unqualified stock symbols...' )
+#print( f'There are {len( sav_set )} qualified stock symbols...' )
+
 
 #''' ============== Dashboards ============== '''
 #if option == 'twitter':
@@ -55,8 +96,9 @@ option = st.sidebar.selectbox('Which Dashboard?',
 # http://theautomatic.net/yahoo_fin-documentation/#get_live_price
 if option == 'chart':
     # https://towardsdatascience.com/free-stock-data-for-python-using-yahoo-finance-api-9dafd96cad2e
-    
-    symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5,help='Enter Valid Stock Ticker Symbol')
+    symbol = st.sidebar.selectbox('Stock Symbol', sav_set,index=23,help='Enter Valid Stock Ticker Symbol')
+
+    #symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5,help='Enter Valid Stock Ticker Symbol')
     st.header('Stock Chart Dashboard - '+symbol)
     st.markdown("""<hr style="height:10px;border:none;color:#333;background-color:#333;" /> """, unsafe_allow_html=True)
     # get stock information from yahoo finance API
@@ -317,31 +359,36 @@ if option == 'general':
 if option == 'stocktwits':
     #st.subheader('chart dashboard logic')
     #symbol= 'AAPL'
-    
-    symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5,help='Enter Valid Stock Ticker Symbol')
+    symbol = st.sidebar.selectbox('Stock Symbol', sav_set,index=23,help='Enter Valid Stock Ticker Symbol')
+    #symbol = st.sidebar.text_input('Stock Symbol',value='AAPL',max_chars=5,help='Enter Valid Stock Ticker Symbol')
     r = requests.get(f"https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json")
     data = r.json()
-
+    
+    #print(data)
     col1, mid, col2 = st.columns([1,1,10])
     with col1:
         st.image('stocktwits-logomark-black.png',width=100)
     with col2:
         st.header('Stockwits - '+symbol)
 
-    st.write('Showing '+str(len(data['messages']))+f' most recent posts shared by Stocktwits community on {symbol}.')
-    st.markdown("""<hr style="height:10px;border:none;color:#333;background-color:#333;" /> """, unsafe_allow_html=True)
-    
-    for message in data['messages']:
-        col1, col2 = st.columns([2,10])
-        with col1:
-            st.image(message['user']['avatar_url'],width=60)
-        with col2:
-            st.write(message['user']['username'])
-            st.write('Published: '+message['created_at'])
+    if data['response']['status'] == 404:
+         st.write(f'{symbol} not available!')
         
-        st.write(message['body'])
-        st.markdown("""<hr style="height:2px;border:none;color:#333;background-color:#333;" /> """, unsafe_allow_html=True)
-        #st.write('_______________________________________________________________')
+    else:    
+        st.write('Showing '+str(len(data['messages']))+f' most recent posts shared by Stocktwits community on {symbol}.')
+        st.markdown("""<hr style="height:10px;border:none;color:#333;background-color:#333;" /> """, unsafe_allow_html=True)
+
+        for message in data['messages']:
+            col1, col2 = st.columns([2,10])
+            with col1:
+                st.image(message['user']['avatar_url'],width=60)
+            with col2:
+                st.write(message['user']['username'])
+                st.write('Published: '+message['created_at'])
+            
+            st.write(message['body'])
+            st.markdown("""<hr style="height:2px;border:none;color:#333;background-color:#333;" /> """, unsafe_allow_html=True)
+            #st.write('_______________________________________________________________')
 
     #st.write(data)
 
