@@ -10,4 +10,4 @@ The application uses yfinance and yahoo_fin library APIs to obtain stock informa
 
 The streamlit application is deployed on heroku.
 
-View the Live Demo [here](https://stock-dashboards.herokuapp.com/).
+View the Live Demo [here](https://ngzhili-stock-dashboard-stock-dashboard-vf97b6.streamlit.app/).
